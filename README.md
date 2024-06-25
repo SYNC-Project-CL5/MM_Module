@@ -8,4 +8,6 @@
   ![mm1](https://github.com/SYNC-Project-CL5/MM_Module/assets/103831860/be44511a-6008-4947-b9e8-0e91b5faf8ed)
   ![mm2](https://github.com/SYNC-Project-CL5/MM_Module/assets/103831860/92088b85-9ff3-4a24-8017-68dce1bd0bdd)
 
+<hr/>
+<br>
 - 작성자 및 관리자 : 김건우 (PM)
