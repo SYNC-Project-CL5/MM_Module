@@ -1,0 +1,53 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>ZEA_MM130_TOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Code listing for: ZEA_MM130_TOP</b></font>
+<br>
+<font size="3" face = "Arial" color="#000000"><b>Description:  Include YE00_EX005_TOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+<font color ="#0000FF">*& Include          YE00_EX005_TOP</font>
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+
+TABLES SSCRFIELDS. " Selection SCReen FEIDLS
+
+" 엑셀파일을 읽어올 때 사용되는 스트럭쳐 구조
+" 해당 구조로 데이터를 읽어와 Internal Table에 적재
+DATA: GT_INTERN TYPE TABLE OF ALSMEX_TABLINE.
+
+" 읽어온 엑셀 데이터를 행/열 구조로 재배치 ( 전부 대소문자 구별되는 50자리 문자열 )
+" 9개의 필드가 존재하는 Internal Table
+
+
+DATA: BEGIN OF GS_EXCEL,
+        MATNR  TYPE ALSMEX_TABLINE-VALUE,
+        WERKS  TYPE ALSMEX_TABLINE-VALUE,
+        SCODE  TYPE ALSMEX_TABLINE-VALUE,
+        CALQTY TYPE ALSMEX_TABLINE-VALUE,
+        MEINS  TYPE ALSMEX_TABLINE-VALUE,
+        WEIGHT TYPE ALSMEX_TABLINE-VALUE,
+        MEINS2 TYPE ALSMEX_TABLINE-VALUE,
+        SAFSTK TYPE ALSMEX_TABLINE-VALUE,
+        MEINS3 TYPE ALSMEX_TABLINE-VALUE,
+      END OF GS_EXCEL,
+
+      GT_EXCEL LIKE TABLE OF GS_EXCEL.
+
+<font color ="#0000FF">*      자재코드 자재유형  자재단위  자재설명  길이  단위  무게  단위  취급시작일자</font>
+
+<font color ="#0000FF">* 저장하기 위한 Internal Table과 Work Area 선언</font>
+DATA GT_MMT190 TYPE TABLE OF ZEA_MMT190.
+DATA GS_MMT190 TYPE ZEA_MMT190.
+
+<font color ="#0000FF">*DATA GT_MAKT TYPE TABLE OF ZEA_MMT020.</font>
+<font color ="#0000FF">*DATA GS_MAKT TYPE ZEA_MMT020.</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 1.3.1 - E.G.Mellodew. 1998-2005 UK. Sap Release 754
+</font>
+</body>
+</html>

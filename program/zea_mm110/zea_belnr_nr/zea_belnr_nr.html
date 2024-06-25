@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>ZEA_BELNR_NR</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Code listing for function: ZEA_BELNR_NR</b></font>
+<br>
+<font size="3" face = "Arial" color="#000000"><b>Description:  [FI] 전표번호 자동채번 함수</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZEA_BELNR_NR.
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">*"*"Local Interface:</font>
+<font color ="#0000FF">*"  EXPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(EV_NUMBER) TYPE  ZEA_BELNR</font>
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+<font color ="#0000FF">*& Form NUMBER_ZEA_BELNR</font>
+<font color ="#0000FF">*& 전표번호 RANGE 변수 생성</font>
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+
+<font color ="#0000FF">*       <a href ="global-zea_belnr_nr.html">Global data declarations</a></font>
+
+  DATA: LV_RC TYPE INRI-RETURNCODE.
+
+  CALL FUNCTION 'NUMBER_GET_NEXT'
+    EXPORTING
+      NR_RANGE_NR             = '01'          " NR에 지정한 No
+      OBJECT                  = 'ZEA_BELNR'   " number range obj 명
+    IMPORTING
+      NUMBER                  = EV_NUMBER
+      RETURNCODE              = LV_RC         " 저장할 변수.
+    EXCEPTIONS
+      INTERVAL_NOT_FOUND      = 1
+      NUMBER_RANGE_NOT_INTERN = 2
+      OBJECT_NOT_FOUND        = 3
+      QUANTITY_IS_0           = 4
+      QUANTITY_IS_NOT_1       = 5
+      INTERVAL_OVERFLOW       = 6
+      BUFFER_OVERFLOW         = 7
+      OTHERS                  = 8.
+  IF SY-SUBRC &lt;&gt; 0.
+    MESSAGE '전표번호 채번이 실패하였습니다' TYPE 'I' DISPLAY LIKE 'E'.
+  ENDIF.
+
+ENDFUNCTION.
+
+
+<font color ="#0000FF">*Messages</font>
+<font color ="#0000FF">*----------------------------------------------------------</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">* Message class: Hard coded</font>
+<font color ="#0000FF">*   전표번호 채번이 실패하였습니다</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 1.3.1 - E.G.Mellodew. 1998-2005 UK. Sap Release 754
+</font>
+</body>
+</html>

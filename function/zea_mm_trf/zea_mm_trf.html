@@ -1,0 +1,407 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>ZEA_MM_TRF</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Code listing for function: ZEA_MM_TRF</b></font>
+<br>
+<font size="3" face = "Arial" color="#000000"><b>Description:  [MM] 자재 이전 함수</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZEA_MM_TRF.
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">*"*"Local Interface:</font>
+<font color ="#0000FF">*"  IMPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(IV_PLANTFR) TYPE  ZEA_MMT190-WERKS</font>
+<font color ="#0000FF">*"     REFERENCE(IV_PLANTTO) TYPE  ZEA_MMT190-WERKS</font>
+<font color ="#0000FF">*"     REFERENCE(IV_MATNR) TYPE  ZEA_MMT190-MATNR</font>
+<font color ="#0000FF">*"     REFERENCE(IV_QUANTITY) TYPE  ZEA_MMT190-CALQTY</font>
+<font color ="#0000FF">*"  EXPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(ES_HEAD) TYPE  ZEA_MMT090</font>
+<font color ="#0000FF">*"     REFERENCE(ET_ITEM) TYPE  ZEA_MMY100</font>
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">* 삭제 플레그 WHERE절 추가 해줘야됨 ZEA_MMT190, ZEA_MMT070.</font>
+
+<font color ="#0000FF">*       <a href ="global-zea_mm_trf.html">Global data declarations</a></font>
+
+<font color ="#0000FF">*  CLEAR : GT_MMT190[], GT_MMT070[].</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*  SELECT *</font>
+<font color ="#0000FF">*    FROM ZEA_MMT190 AS A</font>
+<font color ="#0000FF">*    JOIN ZEA_MMT070 AS B</font>
+<font color ="#0000FF">*      ON B~MATNR EQ A~MATNR</font>
+<font color ="#0000FF">*     AND A~SCODE EQ @IV_LGORTFR</font>
+<font color ="#0000FF">*    INTO CORRESPONDING FIELDS OF TABLE @GT_MMT190.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*  SELECT *</font>
+<font color ="#0000FF">*    FROM ZEA_MMT190 AS A</font>
+<font color ="#0000FF">*    JOIN ZEA_MMT070 AS B</font>
+<font color ="#0000FF">*      ON B~MATNR EQ A~MATNR</font>
+<font color ="#0000FF">*     AND A~SCODE EQ @IV_LGORTTO</font>
+<font color ="#0000FF">*    INTO CORRESPONDING FIELDS OF TABLE @GT_MMT190.</font>
+
+<font color ="#0000FF">*  SELECT SINGLE</font>
+<font color ="#0000FF">*    FROM ZEA_MMT190</font>
+<font color ="#0000FF">*    FIELDS *</font>
+<font color ="#0000FF">*    WHERE MATNR EQ @ZEA_MMT100-MATNR</font>
+<font color ="#0000FF">*      AND WERKS EQ @ZEA_MMT100-PLANTTO</font>
+<font color ="#0000FF">*      AND SCODE EQ @ZEA_MMT100-LGORTTO</font>
+<font color ="#0000FF">*     INTO @GS_MMT190.</font>
+
+<font color ="#0000FF">*      SELECT *</font>
+<font color ="#0000FF">*    FROM ZEA_MMT070</font>
+<font color ="#0000FF">*    INTO TABLE GT_MMT070</font>
+<font color ="#0000FF">*    WHERE LVORM EQ ''.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*  SORT GT_MMT070 BY CHARG.</font>
+
+  DATA: LS_MMT070_OUT TYPE ZEA_MMT070,
+        LS_MMT070_IN  TYPE ZEA_MMT070.
+
+  DATA: LS_MMT190_OUT TYPE ZEA_MMT190,
+        LS_MMT190_IN  TYPE ZEA_MMT190.
+
+
+  DATA: LV_AFTERQTY    TYPE ZEA_MMT070-CALQTY,
+        LV_AFTERCALQTY TYPE ZEA_MMT070-CALQTY,
+        LV_AFTERREMQTY TYPE ZEA_MMT070-REMQTY.
+
+  SELECT SINGLE STPRS
+    FROM ZEA_MMT010
+    INTO @DATA(LV_STPRS)
+    WHERE MATNR EQ @IV_MATNR.
+
+
+  SELECT SINGLE MATNR, WERKS, MIN( CHARG ) AS CHARG , SCODE, CALQTY, REMQTY, MEINS
+    FROM ZEA_MMT070
+   WHERE WERKS EQ @IV_PLANTFR
+     AND MATNR EQ @IV_MATNR
+     AND LVORM EQ @SPACE
+    GROUP BY MATNR, WERKS, SCODE, CALQTY, REMQTY, MEINS
+    INTO CORRESPONDING FIELDS OF @LS_MMT070_OUT.
+
+  IF IV_QUANTITY &gt; LS_MMT070_OUT-REMQTY.
+    MESSAGE  |출고 수량이 잔여 수량보다 많습니다.| TYPE 'S' DISPLAY LIKE 'E'.
+    EXIT.
+  ELSEIF IV_QUANTITY = LS_MMT070_OUT-REMQTY.
+    " 출고 창고의 수량 업데이트
+    UPDATE ZEA_MMT070 SET REMQTY = 0 LVORM = 'X' WHERE MATNR EQ LS_MMT070_OUT-MATNR
+                                                 AND WERKS   EQ LS_MMT070_OUT-WERKS
+                                                 AND CHARG   EQ LS_MMT070_OUT-CHARG.
+
+    UPDATE ZEA_MMT190 SET CALQTY = 0 WHERE MATNR EQ LS_MMT070_OUT-MATNR
+                                       AND WERKS EQ LS_MMT070_OUT-WERKS.
+
+  ELSE.
+    " 출고 창고의 수량 업데이트
+    LV_AFTERQTY = LS_MMT070_OUT-REMQTY - IV_QUANTITY.
+
+    UPDATE ZEA_MMT070 SET REMQTY = LV_AFTERQTY WHERE MATNR EQ LS_MMT070_OUT-MATNR
+                                                 AND WERKS EQ LS_MMT070_OUT-WERKS
+                                                 AND CHARG EQ LS_MMT070_OUT-CHARG.
+
+    SELECT SINGLE *
+      FROM ZEA_MMT190
+      WHERE MATNR EQ @LS_MMT070_OUT-MATNR
+        AND WERKS EQ @LS_MMT070_OUT-WERKS
+      INTO CORRESPONDING FIELDS OF @LS_MMT190_OUT.
+
+    DATA LV_CALQTY TYPE ZEA_MMT190-CALQTY.
+    LV_CALQTY = LS_MMT190_OUT-CALQTY - IV_QUANTITY.
+
+    UPDATE ZEA_MMT190 SET CALQTY = LV_CALQTY
+                    WHERE MATNR EQ LS_MMT070_OUT-MATNR
+                      AND WERKS EQ LS_MMT070_OUT-WERKS.
+
+  ENDIF.
+
+
+
+  " 입고 창고의 수량 업데이트
+  " LS_MMT070_OUT : MATNR, WERKS, MIN( CHARG ) AS CHARG , SCODE, CALQTY, REMQTY, MEINS
+
+
+  SELECT SINGLE SCODE
+    FROM ZEA_MMT060
+   WHERE WERKS EQ @IV_PLANTTO
+    INTO @DATA(LV_SCODE).
+
+  MOVE-CORRESPONDING LS_MMT070_OUT TO LS_MMT070_IN.
+  LS_MMT070_IN-WERKS  = IV_PLANTTO.
+  LS_MMT070_IN-SCODE  = LV_SCODE.
+  LS_MMT070_IN-REMQTY = IV_QUANTITY.
+
+  SELECT SINGLE REMQTY
+    FROM ZEA_MMT070
+   WHERE MATNR EQ @LS_MMT070_IN-MATNR
+     AND WERKS EQ @LS_MMT070_IN-WERKS
+     AND CHARG EQ @LS_MMT070_IN-CHARG
+     INTO @DATA(LV_REMQTY).
+
+  IF SY-SUBRC NE 0.
+    INSERT ZEA_MMT070 FROM LS_MMT070_IN.
+  ELSE.
+    LV_AFTERREMQTY = LV_REMQTY + IV_QUANTITY.
+
+    UPDATE ZEA_MMT070 SET REMQTY = LV_AFTERREMQTY
+                    WHERE MATNR EQ LS_MMT070_IN-MATNR
+                      AND WERKS EQ LS_MMT070_IN-WERKS
+                      AND CHARG EQ LS_MMT070_IN-CHARG.
+  ENDIF.
+
+
+  SELECT SINGLE *
+    FROM ZEA_MMT190
+    WHERE MATNR  EQ @IV_MATNR
+      AND WERKS  EQ @IV_PLANTTO
+      AND SCODE  EQ @LV_SCODE
+    INTO CORRESPONDING FIELDS OF @LS_MMT190_IN.
+
+  IF SY-SUBRC EQ 0.
+    LV_CALQTY = LS_MMT190_IN-CALQTY + IV_QUANTITY.
+
+    UPDATE ZEA_MMT190 SET CALQTY = LV_CALQTY
+                      WHERE MATNR EQ LS_MMT190_IN-MATNR
+                        AND WERKS EQ LS_MMT190_IN-WERKS
+                        AND SCODE EQ LS_MMT190_IN-SCODE.
+  ELSE.
+
+    CLEAR LS_MMT190_IN.
+    LS_MMT190_IN-MATNR   = IV_MATNR.
+    LS_MMT190_IN-WERKS   = IV_PLANTTO.
+    LS_MMT190_IN-SCODE   = LV_SCODE.
+    LS_MMT190_IN-CALQTY  = IV_QUANTITY.
+    LS_MMT190_IN-MEINS   = LS_MMT070_IN-MEINS.
+<font color ="#0000FF">*      LS_MMT190_IN-WEIGHT</font>
+<font color ="#0000FF">*      LS_MMT190_IN-MEINS2</font>
+<font color ="#0000FF">*      LS_MMT190_IN-SAFSTK</font>
+<font color ="#0000FF">*      LS_MMT190_IN-MEINS3</font>
+
+    INSERT ZEA_MMT190 FROM LS_MMT190_IN.
+  ENDIF  .
+
+
+
+
+
+
+
+
+
+  " 헤더 트랜젝션유형: 재고이동
+
+  DATA : NR_RANGE_NR  LIKE  INRI-NRRANGENR.
+  DATA : OBJECT       LIKE  INRI-OBJECT.
+  DATA : QUANTITY     LIKE  INRI-QUANTITY.
+  DATA : GV_NUM       TYPE  I.
+
+  CLEAR: NR_RANGE_NR, OBJECT, QUANTITY.
+  NR_RANGE_NR = '07'.
+  OBJECT      = 'ZEA_MMNR'.
+  QUANTITY    = 1.
+
+  CALL FUNCTION 'NUMBER_GET_NEXT'
+    EXPORTING
+      NR_RANGE_NR             = NR_RANGE_NR
+      OBJECT                  = OBJECT
+      QUANTITY                = QUANTITY
+    IMPORTING
+      NUMBER                  = GS_MMT090-MBLNR "PV_MBLNR
+    EXCEPTIONS
+      INTERVAL_NOT_FOUND      = 1
+      NUMBER_RANGE_NOT_INTERN = 2
+      OBJECT_NOT_FOUND        = 3
+      QUANTITY_IS_0           = 4
+      QUANTITY_IS_NOT_1       = 5
+      INTERVAL_OVERFLOW       = 6
+      BUFFER_OVERFLOW         = 7
+      OTHERS                  = 8.
+
+
+  "자재문서번호
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+    EXPORTING
+      INPUT  = GS_MMT090-MBLNR  " PV_MBLNR
+    IMPORTING
+      OUTPUT = GT_MMT090-MBLNR. " PV_MBLNR.
+
+
+  GT_MMT090-GJAHR = SY-DATUM(4).   "회계연도
+  GT_MMT090-WERKS = IV_PLANTFR.  "플랜트
+  GT_MMT090-BUDAT = SY-DATUM(8).  "전기일
+ GT_MMT090-ERNAM = SY-UNAME.
+ GT_MMT090-ERDAT = SY-DATUM.
+ GT_MMT090-ERZET = SY-UZEIT.
+ APPEND GT_MMT090.
+
+  MODIFY ZEA_MMT090 FROM  GT_MMT090.
+  IF SY-SUBRC NE 0.
+    ROLLBACK WORK.
+    EXIT.
+  ENDIF.
+
+<font color ="#0000FF">*  DATA: LS_MMT090 TYPE ZEA_MMT090.</font>
+<font color ="#0000FF">* LOOP AT GT_MMT090 INTO LS_MMT090.</font>
+   ES_HEAD = GT_MMT090.
+<font color ="#0000FF">* ENDLOOP.</font>
+
+  " 출고 문서 / 이동유형 311
+  CLEAR: GT_MMT100.
+  GT_MMT100-MBLNR = GT_MMT090-MBLNR.
+  GT_MMT100-GJAHR = SY-DATUM(4).
+  GT_MMT100-MBGNO = 1.
+  GT_MMT100-MATNR = IV_MATNR.
+  GT_MMT100-CHARG = LS_MMT070_OUT-CHARG.
+  GT_MMT100-BWART = '311'.
+  GT_MMT100-PLANTFR = IV_PLANTFR.
+  GT_MMT100-LGORTFR = LS_MMT070_OUT-SCODE.
+  GT_MMT100-PLANTTO = IV_PLANTTO.
+  GT_MMT100-LGORTTO = LS_MMT070_IN-SCODE.
+  GT_MMT100-MENGE = - IV_QUANTITY.
+  GT_MMT100-MEINS = LS_MMT070_OUT-MEINS.
+  GT_MMT100-DMBTR = LV_STPRS * - IV_QUANTITY.
+  GT_MMT100-WAERS1 = 'KRW'.
+  GT_MMT100-VENCODE = SPACE.
+  GT_MMT100-GRUND = '재고이전 출발'.
+  GT_MMT100-ERNAM = SY-UNAME.
+  GT_MMT100-ERDAT = SY-DATUM.
+  GT_MMT100-ERZET = SY-UZEIT.
+  APPEND GT_MMT100 .
+
+
+  " 입고 문서 / 이동유형 311
+  CLEAR: GT_MMT100.
+  GT_MMT100-MBLNR = GT_MMT090-MBLNR.
+  GT_MMT100-GJAHR = SY-DATUM(4).
+  GT_MMT100-MBGNO = 2.
+  GT_MMT100-MATNR = IV_MATNR.
+  GT_MMT100-CHARG = LS_MMT070_IN-CHARG.
+  GT_MMT100-BWART = '311'.
+  GT_MMT100-PLANTFR = IV_PLANTFR.
+  GT_MMT100-LGORTFR = LS_MMT070_OUT-SCODE.
+  GT_MMT100-PLANTTO = IV_PLANTTO.
+  GT_MMT100-LGORTTO = LS_MMT070_IN-SCODE.
+  GT_MMT100-MENGE = IV_QUANTITY.
+  GT_MMT100-MEINS = LS_MMT070_OUT-MEINS.
+  GT_MMT100-DMBTR = LV_STPRS * IV_QUANTITY.
+  GT_MMT100-WAERS1 = 'KRW'.
+  GT_MMT100-VENCODE = SPACE.
+  GT_MMT100-GRUND = '재고이전 도착'.
+  GT_MMT100-ERNAM = SY-UNAME.
+  GT_MMT100-ERDAT = SY-DATUM.
+  GT_MMT100-ERZET = SY-UZEIT.
+  APPEND GT_MMT100 .
+
+
+  MODIFY ZEA_MMT100 FROM TABLE GT_MMT100.
+  IF SY-SUBRC NE 0.
+    ROLLBACK WORK.
+  ENDIF.
+
+
+ ET_ITEM = GT_MMT100[].
+
+
+
+<font color ="#0000FF">*        MMT190                     MMT070</font>
+<font color ="#0000FF">* MATNR	 자재코드          MATNR    자재코드</font>
+<font color ="#0000FF">* WERKS	 플랜트ID          WERKS    플랜트ID</font>
+<font color ="#0000FF">* SCODE	 저장위치 코드     CHARG    배치 번호</font>
+<font color ="#0000FF">* CALQTY 수량              SCODE    저장위치 코드</font>
+<font color ="#0000FF">* MEINS	 단위              CALQTY   수량</font>
+<font color ="#0000FF">* WEIGHT 무게              REMQTY   잔여수량</font>
+<font color ="#0000FF">* MEINS2 단위              MEINS    단위</font>
+<font color ="#0000FF">* SAFSTK 안전재고          LVORM    플랜트 배치의 모든 데이터에 대한 삭제 표시</font>
+<font color ="#0000FF">* MEINS3 단위</font>
+
+<font color ="#0000FF">* MBLNR 자재문서 번호   MBLNR     자재문서 번호</font>
+<font color ="#0000FF">* GJAHR 회계연도        GJAHR     회계연도</font>
+<font color ="#0000FF">* WERKS 플랜트ID        MBGNO     자재문서 품목번호</font>
+<font color ="#0000FF">* VGART 트랜잭션 유형   MATNR     자재코드</font>
+<font color ="#0000FF">* BUDAT 전기일자        PONUM     구매오더번호</font>
+<font color ="#0000FF">*                       AUFNR     생산오더 ID</font>
+<font color ="#0000FF">*                       SBELNR    출고 문서 번호</font>
+<font color ="#0000FF">*                       BWART     이동유형</font>
+<font color ="#0000FF">*                       CHARG     배치 번호</font>
+<font color ="#0000FF">*                       PLANTFR   시작정보(플랜트)</font>
+<font color ="#0000FF">*                       PLANTTO   도착정보(플랜트)</font>
+<font color ="#0000FF">*                       LGORTFR   저장위치(시작)</font>
+<font color ="#0000FF">*                       LGORTTO   저장위치(도착)</font>
+<font color ="#0000FF">*                       DMBTR     전표통화금액</font>
+<font color ="#0000FF">*                       WAERS1    통화코드</font>
+<font color ="#0000FF">*                       MENGE     수량</font>
+<font color ="#0000FF">*                       MEINS     단위</font>
+<font color ="#0000FF">*                       GRUND     자재 이동사유</font>
+<font color ="#0000FF">*                       VENCODE   [BP] 벤더코드</font>
+<font color ="#0000FF">*                       CUSCODE   [BP] 고객코드</font>
+
+<font color ="#0000FF">*"     REFERENCE(IV_PLANTFR) TYPE  ZEA_MMT190-WERKS " 출고 플랜트</font>
+<font color ="#0000FF">*"     REFERENCE(IV_PLANTTO) TYPE  ZEA_MMT190-WERKS " 입고 플랜트</font>
+<font color ="#0000FF">*"     REFERENCE(IV_MATNR) TYPE  ZEA_MMT190-MATNR   " 자재</font>
+
+  " 자재 이동시 자재코드 출고창고 입고창고 정보를 받아와서
+  " 출고문서랑 입고문서를 만들어줘야하는데
+  " 출고하는 곳에서는 배치번호가 제일 적은걸 빼야함 ;;
+
+<font color ="#0000FF">*--------------------------------------------------------------------*</font>
+
+<font color ="#0000FF">*--------------------------------------------------------------------*</font>
+
+<font color ="#0000FF">*    DATA: LT_MMT190 TYPE TABLE OF ZEA_MMT190,</font>
+<font color ="#0000FF">*          LS_MMT190 LIKE LINE OF LT_MMT190.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*    SELECT SINGLE</font>
+<font color ="#0000FF">*      FROM ZEA_MMT190</font>
+<font color ="#0000FF">*      FIELDS *</font>
+<font color ="#0000FF">*      WHERE MATNR  EQ @IV_MATNR"@ZEA_MMT100-MATNR</font>
+<font color ="#0000FF">*        AND SCODE  EQ @IV_LGORTFR</font>
+<font color ="#0000FF">*       INTO @LS_MMT190.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*      CLEAR: GT_MMT090[], GT_MMT100[].</font>
+<font color ="#0000FF">*      CLEAR: ZEA_MMT090-MBLNR.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*      IF SY-SUBRC EQ 0.</font>
+
+<font color ="#0000FF">*        PERFORM MAKE_MBLNR_DATA_TFR.</font>
+<font color ="#0000FF">*        LOOP AT LT_MMT190 INTO LS_MMT190.</font>
+<font color ="#0000FF">**  PERFORM MAKE_MBLNR_DATA_TFR_ITEM.</font>
+<font color ="#0000FF">*          CLEAR: GT_MMT100.</font>
+<font color ="#0000FF">*          GT_MMT100-MBLNR = GS_MMT090-MBLNR.</font>
+<font color ="#0000FF">*          GT_MMT100-GJAHR = SY-DATUM(4).</font>
+<font color ="#0000FF">*          GT_MMT100-MBGNO = SY-TABIX.</font>
+<font color ="#0000FF">*          GT_MMT100-MATNR = IV_MATNR.</font>
+<font color ="#0000FF">*          GT_MMT100-CHARG = GS_MMT070-CHARG.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">**  GT_MMT100-SBELNR =</font>
+<font color ="#0000FF">*          GT_MMT100-BWART = '311'.</font>
+<font color ="#0000FF">*          GT_MMT100-LGORTFR = IV_LGORTFR.</font>
+<font color ="#0000FF">**  GT_MMT100-MENGE</font>
+<font color ="#0000FF">**  GT_MMT100-MEINS</font>
+<font color ="#0000FF">**  GT_MMT100-DMBTR</font>
+<font color ="#0000FF">**  GT_MMT100-WAERS1</font>
+<font color ="#0000FF">**  GT_MMT100-VENCODE</font>
+<font color ="#0000FF">**  GT_MMT100-CUSCODE</font>
+<font color ="#0000FF">*        ENDLOOP.</font>
+<font color ="#0000FF">*      ENDIF.</font>
+
+ENDFUNCTION.
+
+<font color ="#0000FF">*Text elements</font>
+<font color ="#0000FF">*----------------------------------------------------------</font>
+<font color ="#0000FF">* U01 KRW</font>
+
+
+<font color ="#0000FF">*Messages</font>
+<font color ="#0000FF">*----------------------------------------------------------</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">* Message class: Hard coded</font>
+<font color ="#0000FF">*   출고 수량이 잔여 수량보다 많습니다.</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 1.3.1 - E.G.Mellodew. 1998-2005 UK. Sap Release 754
+</font>
+</body>
+</html>

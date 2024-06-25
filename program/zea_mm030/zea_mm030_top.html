@@ -1,0 +1,80 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>ZEA_MM030_TOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Code listing for: ZEA_MM030_TOP</b></font>
+<br>
+<font size="3" face = "Arial" color="#000000"><b>Description:  Include YE10_EX0001_TOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+<font color ="#0000FF">*& Include          ZEA_MM030_TOP</font>
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+<font color ="#0000FF">*&</font>
+<font color ="#0000FF">*& TABLES</font>
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+TABLES: ZEA_MMT050.
+
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+<font color ="#0000FF">*&</font>
+<font color ="#0000FF">*& INTERNAL TABLE</font>
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+DATA : BEGIN OF GT_MMT050 OCCURS 0.
+DATA : ICON LIKE ICON-ID.
+       include structure <a href ="zea_mmt050/dictionary-zea_mmt050.html">ZEA_MMT050</a>.
+
+DATA : BPVEN  LIKE ZEA_LFA1-BPVEN.
+DATA : MAKTX  LIKE ZEA_MMT020-MAKTX.
+DATA : PNAME1 LIKE ZEA_T001W-PNAME1.
+DATA : END OF GT_MMT050.
+
+<font color ="#0000FF">*자재명</font>
+DATA : GT_MMT020 LIKE TABLE OF ZEA_MMT020.
+DATA : GS_MMT020 LIKE LINE  OF GT_MMT020.
+
+<font color ="#0000FF">*공급업체명</font>
+DATA : GT_LFA1   LIKE TABLE OF ZEA_LFA1.
+DATA : GS_LFA1   LIKE LINE  OF GT_LFA1.
+
+DATA : GT_T001W  LIKE TABLE OF ZEA_T001W.
+DATA : GS_T001W  LIKE LINE  OF GT_T001W.
+
+
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+<font color ="#0000FF">*&</font>
+<font color ="#0000FF">*& SCREEN VARIABLE</font>
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+DATA: OK_CODE TYPE SY-UCOMM.
+
+DATA: BEGIN OF GT_EXCLUDE OCCURS 0,"
+        STATUS_NAME(30),
+      END OF GT_EXCLUDE.
+
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+<font color ="#0000FF">*&</font>
+<font color ="#0000FF">*& ALV VARIABLE</font>
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+<font color ="#0000FF">*-----Custom Container-----*</font>
+DATA: GO_CONTAINER TYPE REF TO CL_GUI_CUSTOM_CONTAINER,
+      GO_ALV_GRID  TYPE REF TO CL_GUI_ALV_GRID.
+
+<font color ="#0000FF">*-----Other Objects-----*</font>
+DATA: GS_LAYOUT    TYPE LVC_S_LAYO,
+      GT_FIELDCAT  TYPE LVC_T_FCAT,
+      GS_VARIANT   TYPE DISVARIANT,
+      GV_SAVE      TYPE C.
+
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+<font color ="#0000FF">*&</font>
+<font color ="#0000FF">*& FLAG</font>
+<font color ="#0000FF">*&--------------------------------------------------------------------*</font>
+DATA: GV_MODE(1)."D: 조회, C:수정
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 1.3.1 - E.G.Mellodew. 1998-2005 UK. Sap Release 754
+</font>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>ZEA_MM020SCR</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Code listing for: ZEA_MM020SCR</b></font>
+<br>
+<font size="3" face = "Arial" color="#000000"><b>Description:  Include YE07_STROSCR</b></font>
+<hr>
+<pre width="100">
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+<font color ="#0000FF">*& Include          YE07_STROSCR</font>
+<font color ="#0000FF">*&---------------------------------------------------------------------*</font>
+
+SELECTION-SCREEN BEGIN OF SCREEN 1100 AS SUBSCREEN.
+  SELECTION-SCREEN BEGIN OF BLOCK BLK1 WITH FRAME TITLE TEXT-T01.
+
+    SELECT-OPTIONS: SO_WERKS FOR ZEA_MMT060-WERKS,
+                    SO_SCODE FOR ZEA_MMT060-SCODE MATCHCODE OBJECT ZEA_MM_SCODE,
+                    SO_STYPE FOR ZEA_MMT060-STYPE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+<font color ="#0000FF">* TEXT-S02: Flight Date</font>
+SELECTION-SCREEN COMMENT (28) TEXT-S02 FOR FIELD SO_SNAME.
+SELECT-OPTIONS SO_SNAME FOR ZEA_MMT060-SNAME NO-EXTENSION.
+SELECTION-SCREEN PUSHBUTTON (10) TEXT-S01 USER-COMMAND SEARCH.
+SELECTION-SCREEN END OF LINE.
+  SELECTION-SCREEN END OF BLOCK BLK1.
+  SELECTION-SCREEN END OF SCREEN 1100.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 1.3.1 - E.G.Mellodew. 1998-2005 UK. Sap Release 754
+</font>
+</body>
+</html>

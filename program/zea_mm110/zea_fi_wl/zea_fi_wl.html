@@ -1,0 +1,315 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>ZEA_FI_WL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Code listing for function: ZEA_FI_WL</b></font>
+<br>
+<font size="3" face = "Arial" color="#000000"><b>Description:  [FI] MM모듈 WL 자동함수 생성</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZEA_FI_WL.
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">*"*"Local Interface:</font>
+<font color ="#0000FF">*"  IMPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(IS_HEAD) TYPE  ZEA_MMT090</font>
+<font color ="#0000FF">*"     REFERENCE(IT_ITEM) TYPE  ZEA_MMY100</font>
+<font color ="#0000FF">*"  EXPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(EV_BELNR) TYPE  ZEA_BSEG-BELNR</font>
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">*"*"Local Interface:</font>
+<font color ="#0000FF">*"  IMPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(IS_HEAD) TYPE  ZEA_MMT090</font>
+<font color ="#0000FF">*"     REFERENCE(IT_ITEM) TYPE  ZEA_MMY100</font>
+<font color ="#0000FF">*"  EXPORTING</font>
+<font color ="#0000FF">*"     REFERENCE(EV_BELNR) TYPE  ZEA_BSEG-BELNR</font>
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">*           MM 자재 문서 &gt;  자재 이동에 대한 FI 문서 자동발생</font>
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+<font color ="#0000FF">* [이동유형 정리]</font>
+
+<font color ="#0000FF">*       <a href ="global-zea_fi_wl.html">Global data declarations</a></font>
+  " [SD] 출하 플랜트에 대한 정보를 레콘계정을 변수로 넣는다. ----- &gt; 완료 ( 601 )
+  " [MM] 입출고 플랜트에 대한 정보를 레콘계정으로 변수를 넣는다. --&gt; 완료 ( 311 )
+  " [PP] CDC RDC 플랜트에 대한 정보를 레콘계정으로 변수를 넣는다. -&gt; 완료 ( 131 )
+
+<font color ="#0000FF">* [테스트 진행이력]</font>
+  " 1. 2024.04.30 : SD ( 완료-성공 ) / MM ( PP-개발중 ) / PP ( PP-개발중 )
+  " 2. 2024.05.04 : SD ( 아이템의 모든 데이터를 SUM 값 하는 오류 확인하여 수정중 )
+  " 3. 2024.05.07 : SD ( 수정사항 반영완료 )
+<font color ="#0000FF">*"----------------------------------------------------------------------</font>
+  CLEAR: GS_BKPF, GS_BSEG.
+  REFRESH: GT_BKPF, GT_BSEG.
+
+<font color ="#0000FF">* -- 전표번호 채번</font>
+  call function <a href ="../zea_belnr_nr/zea_belnr_nr.html">'ZEA_BELNR_NR'</a>
+    IMPORTING
+      EV_NUMBER = GV_BELNR_NUMBER.
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">*                            SELECT DATA</font>
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">* 헤더 : IS_HEAD / 아이템 : IT_ITEM</font>
+  IV_MBLNR = IS_HEAD-MBLNR .  " 자재문서 번호
+  IV_BUDAT = IS_HEAD-BUDAT.   " 전기일자(자재문서 이동 발생일)
+
+  LOOP AT IT_ITEM INTO GS_MMT100 WHERE MBLNR EQ IV_MBLNR.
+<font color ="#0000FF">*    GV_TOTAL   =  GV_TOTAL + GS_MMT100-DMBTR. " [MM] ITEM - 자재 총 금액</font>
+    IV_BWART   =  GS_MMT100-BWART.            " [MM] ITEM - 이동유형
+    IV_PLANTFR =  GS_MMT100-PLANTFR.          " [MM] ITEM - 시작정보(플랜트)
+    IV_PLANTTO =  GS_MMT100-PLANTTO.          " [MM] ITEM - 도착정보(플랜트)
+    IV_DMBTR   =  GS_MMT100-DMBTR.            " [MM] ITEM - 통화금액 ( 총 통화금액 )
+    IV_WAERS1  =  GS_MMT100-WAERS1.           " [MM] ITEM - 통화코드
+    IV_VENCODE =  GS_MMT100-VENCODE.          " [MM] ITEM - 벤더코드
+    IV_CUSCODE =  GS_MMT100-CUSCODE.          " [MM] ITEM - 고객코드
+  ENDLOOP.
+
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">*                            IMPORTING</font>
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">* -- 1. MM =&gt; FI 전표발생 CHECK ---------------------------------------*</font>
+<font color ="#0000FF">*  CHECK GS_MMT090-MBLNR IS NOT INITIAL. " 자재문서 번호가 존재하는지 CHECK.</font>
+
+<font color ="#0000FF">* -- 2. FI 전표 헤더 생성 ---------------------------------------------*</font>
+
+  " 데이터 생성
+  GS_BKPF-BUKRS = '1000'.
+  GS_BKPF-BELNR = GV_BELNR_NUMBER.
+  GS_BKPF-GJAHR = SY-DATUM+0(4).
+  GS_BKPF-BLART = 'WL'. " 자재이동
+  GS_BKPF-BLDAT = IV_BUDAT.    " [MM] 전기일자 =&gt; [FI] 헤더 - 증빙일자
+  GS_BKPF-BUDAT = IV_BUDAT.    " [MM] 증빙일자 =&gt; [FI] 헤더 - 전기일자
+  GS_BKPF-ERNAM = 'ACA5-08'. " 생성자 이름
+  GS_BKPF-ERDAT = SY-DATUM.  " 생성일
+  GS_BKPF-ERZET = SY-UZEIT.  " 입력시간
+
+  IF IV_VENCODE IS NOT INITIAL.
+    GS_BKPF-BLTXT = '[MM] 자재이동' && ' (벤더사:' && IV_VENCODE && ' )'.
+  ELSEIF IV_CUSCODE IS NOT INITIAL.
+    GS_BKPF-BLTXT = '[MM] 자재이동' && ' (고객사:' && IV_CUSCODE && ' )'.
+  ELSE.
+    GS_BKPF-BLTXT = '[MM] 자재이동' && ' (직영점:' && IV_PLANTFR && ' -&gt; 직영점: ' && IV_PLANTTO && ' )'.
+  ENDIF.
+  GS_BKPF-XBLNR = IV_MBLNR.     " [MM] 자재문서 번호 =&gt; [FI] 헤더 - 참조문서
+
+
+<font color ="#0000FF">* -- 3. FI 전표 아이템 생성 -------------------------------------------*</font>
+<font color ="#0000FF">* -- 금액 변환 [BAPI]</font>
+<font color ="#0000FF">*  CASE IV_WAERS1.</font>
+<font color ="#0000FF">*    WHEN 'KRW'.</font>
+<font color ="#0000FF">*      CALL FUNCTION 'BAPI_CURRENCY_CONV_TO_INTERNAL'</font>
+<font color ="#0000FF">*        EXPORTING</font>
+<font color ="#0000FF">*          AMOUNT_EXTERNAL      = IV_DMBTR</font>
+<font color ="#0000FF">*          CURRENCY             = IV_WAERS1</font>
+<font color ="#0000FF">*          MAX_NUMBER_OF_DIGITS = 23  "출력할 금액필드의 자릿수"</font>
+<font color ="#0000FF">*        IMPORTING</font>
+<font color ="#0000FF">*          AMOUNT_INTERNAL      = LV_AFTER_AMT.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*  ENDCASE.</font>
+
+
+  CASE IV_BWART. " [MM] 이동유형
+<font color ="#0000FF">* -- CASE1. 내부 이동 (생산창고 10000 -&gt; 보관창고 10001 ) -------------*</font>
+<font color ="#0000FF">*    WHEN '131'. " 생산창고[PP] : 내부이동 ( 생산창고 -&gt; 보관창고 )</font>
+<font color ="#0000FF">*    (131 번 유형은 사용하지 않음)</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">** --  Item Number 생성</font>
+<font color ="#0000FF">*      DO 2 TIMES.</font>
+<font color ="#0000FF">*        GS_BSEG-ITNUM = SY-INDEX. " Item 번호</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">** --  Item Number 에 따른 전표 생성</font>
+<font color ="#0000FF">*        CASE GS_BSEG-ITNUM.</font>
+<font color ="#0000FF">*          WHEN 1.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            CLEAR: GV_RECON.</font>
+<font color ="#0000FF">*            " 도착정보 플랜트의 제품 계정 코드 (S) - 보관창고</font>
+<font color ="#0000FF">*            PERFORM GV_RECON USING GS_MMT100-PLANTFR</font>
+<font color ="#0000FF">*                             CHANGING GV_RECON.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            GS_BSEG-BUKRS = '1000'.</font>
+<font color ="#0000FF">*            GS_BSEG-BELNR = GV_BELNR_NUMBER."[FI] 전표번호 (자동채번)</font>
+<font color ="#0000FF">*            GS_BSEG-GJAHR = '2024'.</font>
+<font color ="#0000FF">*            GS_BSEG-BSCHL = '40'.          " [FI] 전기키</font>
+<font color ="#0000FF">*            GS_BSEG-SAKNR = GV_RECON.      " [FI] G/L계정 (Recon)</font>
+<font color ="#0000FF">*            GS_BSEG-GLTXT = '[PP] 자재이동' && ' (Plant:' && IV_PLANTTO && ')'. " [FI] G/L계정명</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            GS_BSEG-DMBTR   = IV_DMBTR.     " [MM] 금액 =&gt; 도착정보(보관 Plant)의 총 금액</font>
+<font color ="#0000FF">*            GS_BSEG-D_WAERS = IV_WAERS1.    " [MM] 통화코드</font>
+<font color ="#0000FF">*            GS_BSEG-WRBTR   = IV_DMBTR.     " [MM] 금액</font>
+<font color ="#0000FF">*            GS_BSEG-W_WAERS = IV_WAERS1.    " [MM] 통화코드</font>
+<font color ="#0000FF">*            GS_BSEG-MATNR   = IV_MATNR.     " [MM] 자재코드 =&gt; [FI] 아이템 - 자재코드</font>
+<font color ="#0000FF">*            GS_BSEG-WERKS   = IV_PLANTTO.   " [MM] 보관 플랜트ID(도착) =&gt; [FI] 아이템 - 플랜트ID</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            APPEND GS_BSEG TO GT_BSEG.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*          WHEN 2.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            CLEAR: GV_RECON.</font>
+<font color ="#0000FF">*            " 시작정보 플랜트의 제품 계정 코드 (H) - 생산창고</font>
+<font color ="#0000FF">*            PERFORM GV_RECON USING GS_MMT100-PLANTFR</font>
+<font color ="#0000FF">*                             CHANGING GV_RECON.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            GS_BSEG-BUKRS = '1000'.</font>
+<font color ="#0000FF">*            GS_BSEG-BELNR = GV_BELNR_NUMBER.</font>
+<font color ="#0000FF">*            GS_BSEG-GJAHR = '2024'.</font>
+<font color ="#0000FF">*            GS_BSEG-BSCHL = '50'.          " [FI] 전기키</font>
+<font color ="#0000FF">*            GS_BSEG-SAKNR = GV_RECON.      " [FI] G/L계정 (Recon)</font>
+<font color ="#0000FF">*            GS_BSEG-GLTXT = '[PP] 자재이동' && ' (Plant:' && IV_PLANTFR && ')'. " [FI] G/L계정명</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            GS_BSEG-DMBTR   = IV_DMBTR.     " [MM] 금액 =&gt; 출발정보(생산 Plant)의 금액</font>
+<font color ="#0000FF">*            GS_BSEG-D_WAERS = IV_WAERS1.    " [MM] 통화코드</font>
+<font color ="#0000FF">*            GS_BSEG-WRBTR   = IV_DMBTR.     " [MM] 금액</font>
+<font color ="#0000FF">*            GS_BSEG-W_WAERS = IV_WAERS1.    " [MM] 통화코드</font>
+<font color ="#0000FF">*            GS_BSEG-MATNR   = IV_MATNR.     " [MM] 자재코드 =&gt; [FI] 아이템 - 자재코드</font>
+<font color ="#0000FF">*            GS_BSEG-WERKS   = IV_PLANTFR.   " [MM] 생산 플랜트ID(출고) =&gt; [FI] 아이템 - 플랜트ID</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*            APPEND GS_BSEG TO GT_BSEG.</font>
+<font color ="#0000FF">*        ENDCASE.</font>
+<font color ="#0000FF">*</font>
+<font color ="#0000FF">*      ENDDO.</font>
+
+
+<font color ="#0000FF">* -- CASE2. 내부 이동 (A Plant -&gt; B Plant [직영점] )-------------------*</font>
+    WHEN '311'. " 재고이전[MM] : 내부이동 ( 보관창고 &lt;-&gt; 보관창고)
+
+<font color ="#0000FF">* --  Item Number 생성</font>
+      DO 2 TIMES.
+        GS_BSEG-ITNUM = SY-INDEX. " Item 번호
+
+<font color ="#0000FF">* --  Item Number 에 따른 전표 생성</font>
+        CASE GS_BSEG-ITNUM.
+          WHEN 1.
+
+            CLEAR: GV_RECON.
+            " 출발정보 플랜트의 제품 계정 코드 (S)
+            PERFORM GV_RECON USING GS_MMT100-PLANTTO
+                             CHANGING GV_RECON.
+
+            GS_BSEG-BUKRS = '1000'.
+            GS_BSEG-BELNR = GV_BELNR_NUMBER.
+            GS_BSEG-GJAHR = '2024'.
+            GS_BSEG-BSCHL = '40'.          " [FI] 전기키
+            GS_BSEG-SAKNR = GV_RECON.      " [FI] G/L계정 (Recon)
+            GS_BSEG-GLTXT = '[MM] 제품' && ' (Plant:' && IV_PLANTTO && ')'. " [FI] G/L계정명
+
+<font color ="#0000FF">*     -- 자재 이동 시, 자재원가 차이 발생하지 않는다고 가정.</font>
+<font color ="#0000FF">*     -- 따라서 출고 시 -&gt; 입고 시 자산의 금액은 동일하다.</font>
+            GS_BSEG-DMBTR   = IV_DMBTR.     " [MM] 금액 =&gt; 도착정보(B Plant)의 금액
+            GS_BSEG-D_WAERS = IV_WAERS1.    " [MM] 통화코드
+            GS_BSEG-WRBTR   = IV_DMBTR.     " [MM] 금액
+            GS_BSEG-W_WAERS = IV_WAERS1.    " [MM] 통화코드
+            GS_BSEG-MATNR   = IV_MATNR.     " [MM] 자재코드 =&gt; [FI] 아이템 - 자재코드
+            GS_BSEG-BPCODE  = IV_PLANTTO.   " [MM] BPCODE
+            GS_BSEG-WERKS   = IV_PLANTTO.   " [MM] B 플랜트ID(도착) =&gt; [FI] 아이템 - 플랜트ID
+
+            APPEND GS_BSEG TO GT_BSEG.
+
+          WHEN 2.
+            CLEAR: GV_RECON.
+            " 출발정보 플랜트의 제품 계정 코드 (H)
+            PERFORM GV_RECON USING GS_MMT100-PLANTFR
+                             CHANGING GV_RECON.
+
+            GS_BSEG-BUKRS = '1000'.
+            GS_BSEG-BELNR = GV_BELNR_NUMBER.
+            GS_BSEG-GJAHR = '2024'.
+            GS_BSEG-BSCHL = '50'.          " [FI] 전기키
+            GS_BSEG-SAKNR = GV_RECON.      " [FI] G/L계정 (Recon)
+            GS_BSEG-GLTXT = '[MM] 제품' && ' (Plant:' && IV_PLANTFR && ')'. " [FI] G/L계정명
+
+            GS_BSEG-DMBTR   = IV_DMBTR.     " [MM] 금액 =&gt; 출발정보(A Plant)의 금액
+            GS_BSEG-D_WAERS = IV_WAERS1.    " [MM] 통화코드
+            GS_BSEG-WRBTR   = IV_DMBTR.     " [MM] 금액
+            GS_BSEG-W_WAERS = IV_WAERS1.    " [MM] 통화코드
+            GS_BSEG-MATNR   = IV_MATNR.     " [MM] 자재코드 =&gt; [FI] 아이템 - 자재코드
+            GS_BSEG-BPCODE  = IV_PLANTFR.   " [MM] BPCODE
+            GS_BSEG-WERKS   = IV_PLANTFR.   " [MM] A 플랜트ID(출고)  =&gt; [FI] 아이템 - 플랜트ID
+
+            APPEND GS_BSEG TO GT_BSEG.
+        ENDCASE.
+
+      ENDDO.
+
+
+
+
+<font color ="#0000FF">* -- CASE3. 외부 이동 ( 납품- WL 발생시점: 본사 =&gt; 거래처 )------------*</font>
+    WHEN '601'. " 완제품 출고[SD] : 외부이동 (도매)
+      CLEAR: GV_RECON.
+      " 출발정보 플랜트의 제품 계정 코드
+      PERFORM GV_RECON USING GS_MMT100-PLANTFR
+                       CHANGING GV_RECON.
+
+<font color ="#0000FF">* --  Item Number 생성</font>
+      DO 2 TIMES.
+        GS_BSEG-ITNUM = SY-INDEX. " Item 번호
+
+<font color ="#0000FF">* --  Item Number 에 따른 전표 생성</font>
+        CASE GS_BSEG-ITNUM.
+          WHEN 1.
+            GS_BSEG-BUKRS = '1000'.
+            GS_BSEG-BELNR = GV_BELNR_NUMBER.
+            GS_BSEG-GJAHR = '2024'.
+            GS_BSEG-BSCHL = '40'.        " [FI] 전기키
+            GS_BSEG-SAKNR = '510040'.    " [FI] G/L계정 (Recon) = 매출원가
+            GS_BSEG-GLTXT = '매출원가'.  " [FI] G/L계정명
+
+            GS_BSEG-DMBTR   = IV_DMBTR.     " [MM] 금액
+            GS_BSEG-D_WAERS = IV_WAERS1.    " [MM] 통화코드
+            GS_BSEG-WRBTR   = IV_DMBTR.     " [MM] 금액 ( 모든 ITEM 의 총 금액 )
+            GS_BSEG-W_WAERS = IV_WAERS1.    " [MM] 통화코드
+<font color ="#0000FF">*            GS_BSEG-MATNR   = IV_MATNR.    " [MM] 자재코드 =&gt; [FI] 아이템 - 자재코드 ( 자재코드가 여러 개인 경우가 있기에 생략함 )</font>
+            GS_BSEG-WERKS   = '10000'.      " [MM] 플랜트ID =&gt; 매출원가가 발생하는 플랜트ID = 본사
+
+            APPEND GS_BSEG TO GT_BSEG.
+
+          WHEN 2.
+            GS_BSEG-BUKRS = '1000'.
+            GS_BSEG-BELNR = GV_BELNR_NUMBER.
+            GS_BSEG-GJAHR = '2024'.
+            GS_BSEG-BSCHL = '50'.          " [FI] 전기키
+            GS_BSEG-SAKNR = GV_RECON.      " [FI] G/L계정 (Recon)
+            GS_BSEG-GLTXT = '[SD] 제품' && ' (Plant:' && IV_PLANTFR && ')'. " [FI] G/L계정명
+
+            GS_BSEG-DMBTR   = IV_DMBTR.     " [MM] 금액
+            GS_BSEG-D_WAERS = IV_WAERS1.    " [MM] 통화코드
+            GS_BSEG-WRBTR   = IV_DMBTR.     " [MM] 금액
+            GS_BSEG-W_WAERS = IV_WAERS1.    " [MM] 통화코드
+<font color ="#0000FF">*            GS_BSEG-MATNR   = IV_MATNR.    " [MM] 자재코드 =&gt; [FI] 아이템 - 자재코드 ( 자재코드가 여러 개인 경우가 있기에 생략함 )</font>
+            GS_BSEG-WERKS   = IV_PLANTFR.   " [MM] 플랜트ID =&gt; 출고가 발생하는 플랜트
+
+            APPEND GS_BSEG TO GT_BSEG.
+        ENDCASE.
+
+      ENDDO.
+<font color ="#0000FF">*    WHEN . " 입고 ( 벤더 =&gt; 송장검증으로 대체 )</font>
+
+  ENDCASE.
+
+
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">*                  SAVE TO ZEA_BKPF / ZEA_BSEG</font>
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+  INSERT  ZEA_BKPF FROM GS_BKPF.
+  INSERT  ZEA_BSEG FROM TABLE GT_BSEG.
+
+
+  IF SY-SUBRC EQ 0.
+    COMMIT WORK AND WAIT.
+<font color ="#0000FF">*    MESSAGE GV_BELNR_NUMBER && '번 전표가 생성되었습니다. ' TYPE 'S'.</font>
+  ENDIF.
+
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">*                          EXPORTING</font>
+<font color ="#0000FF">*----------------------------------------------------------------------</font>
+<font color ="#0000FF">*                        &lt;&lt; FI =&gt; MM &gt;&gt;</font>
+  EV_BELNR =  GV_BELNR_NUMBER. "전표번호 Exporting
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 1.3.1 - E.G.Mellodew. 1998-2005 UK. Sap Release 754
+</font>
+</body>
+</html>
